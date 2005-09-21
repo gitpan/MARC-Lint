@@ -2,10 +2,14 @@ bin/marclint
 Changes
 etc/ecbdlist.html
 etc/specs
+lib/MARC/Lint/CodeData.pm
 lib/MARC/Lint.pm
 Makefile.PL
 MANIFEST
 META.yml
 README
 t/camel.usmarc
+t/check020.t
+t/check041043.t
+t/check245.t
 t/lint.t

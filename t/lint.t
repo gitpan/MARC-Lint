@@ -2,19 +2,20 @@
 
 use strict;
 use warnings;
-use Test::More tests=>35;
+use File::Spec;
+use Test::More tests=>40;
 
 BEGIN { use_ok( 'MARC::File::USMARC' ); }
 BEGIN { use_ok( 'MARC::Lint' ); }
 
 
 FROM_FILE: {
-    my @expected = ( (undef) x 9, [ q{100: Indicator 1 must be 0, 1 or 3 but it's "2"} ] );
+    my @expected = ( (undef) x 9, [ q{100: Indicator 1 must be 0, 1 or 3 but it's "2"} ], [ q{007: Subfields are not allowed in fields lower than 010} ] );
 
     my $lint = new MARC::Lint;
     isa_ok( $lint, 'MARC::Lint' );
 
-    my $filename = "t/camel.usmarc";
+    my $filename = File::Spec->catfile( 't', 'camel.usmarc');
 
     my $file = MARC::File::USMARC->in( $filename );
     while ( my $marc = $file->next() ) {
@@ -42,6 +43,13 @@ FROM_TEXT: {
 
     $marc->leader("00000nam  22002538a 4500"); # The ????? represents meaningless digits at this point
     my $nfields = $marc->add_fields(
+        ['041', "0", "",
+            a => 'end',
+            a => 'fren',
+            ],
+        ['043', "", "",
+            a => 'n-us-pn',
+            ],
         [100, "1","4", 
             a => "Wall, Larry",
             ],
@@ -75,10 +83,13 @@ FROM_TEXT: {
             q => "Another foreign thing",
             ],
     );
-    is( $nfields, 9, "All the fields added OK" );
+    is( $nfields, 11, "All the fields added OK" );
 
     my @expected = (
         q{1XX: Only one 1XX tag is allowed, but I found 2 of them.},
+        q{041: Subfield _a, end (end), is not valid.},
+        q{041: Subfield _a must be evenly divisible by 3 or exactly three characters if ind2 is not 7, (fren).},
+        q{043: Subfield _a, n-us-pn, is not valid.},
         q{100: Indicator 2 must be blank but it's "4"},
         q{245: Indicator 1 must be 0 or 1 but it's "9"},
         q{245: Subfield _a is not repeatable.},
