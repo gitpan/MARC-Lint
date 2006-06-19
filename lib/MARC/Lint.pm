@@ -8,7 +8,7 @@ use MARC::Field;
 
 use MARC::Lint::CodeData qw(%GeogAreaCodes %ObsoleteGeogAreaCodes %LanguageCodes %ObsoleteLanguageCodes);
 
-our $VERSION = 1.41;
+our $VERSION = 1.42;
 
 =head1 NAME
 
@@ -52,12 +52,12 @@ Given the following MARC record:
 the following errors are generated:
 
     1XX: Only one 1XX tag is allowed, but I found 2 of them.
-    100: Indicator 2 must be blank
-    245: Indicator 1 must be 0 or 1
+    100: Indicator 2 must be blank but it's "4"
+    245: Indicator 1 must be 0 or 1 but it's "9"
     245: Subfield _a is not repeatable.
     250: Field is not repeatable.
-    260: Subfield _r is not valid.
-    856: Indicator 2 must be blank, 0, 1, 2 or 8
+    260: Subfield _r is not allowed.
+    856: Indicator 2 must be blank, 0, 1, 2 or 8 but it's "3"
 
 =head1 DESCRIPTION
 
@@ -172,7 +172,7 @@ sub check_record {
         my $tagno = $field->tag;
         my $tagrules = $rules->{$tagno} or next;
 
-        if ( $tagrules->{NR} && $field_seen{$tagno} ) {
+        if ( ($tagrules->{'repeatable'} && ( $tagrules->{'repeatable'} eq 'NR' )) && $field_seen{$tagno} ) {
             $self->warn( "$tagno: Field is not repeatable." );
         }
 
@@ -847,7 +847,7 @@ sub _parse_tag_rules {
     my @lines = @_;
 
     my $rules = ($self->{_rules}->{$tagno} ||= {});
-    $rules->{$repeatable} = $repeatable;
+    $rules->{'repeatable'} = $repeatable;
 
     for my $line ( @lines ) {
         my @keyvals = split( /\s+/, $line, 3 );
@@ -1185,7 +1185,7 @@ e       NR      Description conventions
 ind1    01      Translation indication
 ind2    b7      Source of code
 a       R       Language code of text/sound track or separate title 
-b       R       Language code of summary or abstract/overprinted title or subtitle 
+b       R       Language code for summary, abstract or subtitles
 d       R       Language code of sung or spoken text 
 e       R       Language code of librettos 
 f       R       Language code of table of contents 
@@ -1254,9 +1254,10 @@ a       R       Form of musical composition code
 
 048     R       NUMBER OF MUSICAL INSTRUMENTS OR VOICES CODE
 ind1    blank   Undefined
-ind2    blank   Undefined
+ind2    b2      Source specified in subfield $2
 a       R       Performer or ensemble 
 b       R       Soloist 
+2       NR      Source of code
 8       R       Field link and sequence number
 
 050     R       LIBRARY OF CONGRESS CALL NUMBER
@@ -2603,6 +2604,7 @@ ind1    0-9     Nonfiling characters
 ind2    01234567    Thesaurus
 a       NR      Uniform title 
 d       R       Date of treaty signing 
+e       R       Relator term
 f       NR      Date of a work 
 g       NR      Miscellaneous information 
 h       NR      Medium 
@@ -2621,6 +2623,7 @@ y       R       Chronological subdivision
 z       R       Geographic subdivision 
 2       NR      Source of heading or term 
 3       NR      Materials specified 
+4       R       Relator code
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -2651,6 +2654,7 @@ y       R       Chronological subdivision
 z       R       Geographic subdivision 
 2       NR      Source of heading or term 
 3       NR      Materials specified 
+4       R       Relator code
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -2658,12 +2662,14 @@ z       R       Geographic subdivision
 ind1    blank   Undefined
 ind2    01234567    Thesaurus
 a       NR      Geographic name 
+e       R       Relator term
 v       R       Form subdivision 
 x       R       General subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
 2       NR      Source of heading or term 
 3       NR      Materials specified 
+4       R       Relator code
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -2680,11 +2686,13 @@ ind2    blank   Undefined
 a       R       Focus term 
 b       R       Non-focus term 
 c       R       Facet/hierarchy designation 
+e       R       Relator term
 v       R       Form subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
 2       NR      Source of heading or term 
 3       NR      Materials specified 
+4       R       Relator code
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -2741,6 +2749,22 @@ d       NR      Correlation factor
 2       NR      Source of term or code 
 6       NR      Linkage 
 8       R       Field link and sequence number 
+
+662     R       SUBJECT ADDED ENTRY--HIERARCHICAL PLACE NAME
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Country or larger entity
+b       NR      First-order political jurisdiction
+c       R       Intermediate political jurisdiction
+d       NR      City
+e       R       Relator term
+f       R       City subsection
+g       R       Other nonjurisdictional geographic region and feature
+h       R       Extraterrestrial area
+2       NR      Source of heading or term
+4       R       Relator code
+6       NR      Linkage
+8       R       Field link and sequence number
 
 700     R       ADDED ENTRY--PERSONAL NAME
 ind1    013     Type of personal name entry element
@@ -2871,12 +2895,16 @@ p       R       Name of part/section of a work
 752     R       ADDED ENTRY--HIERARCHICAL PLACE NAME
 ind1    blank   Undefined
 ind2    blank   Undefined
-a       NR      Country 
-b       NR      State, province, territory 
-c       NR      County, region, islands area 
-d       NR      City 
-6       NR      Linkage 
-8       R       Field link and sequence number 
+a       NR      Country or larger entity
+b       NR      First-order political jurisdiction
+c       NR      Intermediate political jurisdiction
+d       NR      City
+f       R       City subsection
+g       R       Other nonjurisdictional geographic region and feature
+h       R       Extraterrestrial area
+2       NR      Source of heading or term
+6       NR      Linkage
+8       R       Field link and sequence number
 
 753     R       SYSTEM DETAILS ACCESS TO COMPUTER FILES
 ind1    blank   Undefined

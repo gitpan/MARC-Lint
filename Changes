@@ -1,3 +1,15 @@
+1.42    Mon June 19 18:28:00 CDT 2006
+
+        [THINGS THAT MAY BREAK YOUR CODE]
+
+        - Fixed bug that allowed subfield R due to the way tag repeatability is set.
+
+        - Removed META.yml from MANIFEST
+        - Updated MARC::Lint::CodeData with most recent version
+        - Updated Lint::DATA section with Update No. 6 (Oct. 2005)
+        - Updated etc/ecbdlist.html to Update No. 6 (October 2005)
+
+
 1.41    Wed Sept 21 17:49:00 CDT 2005
         [THINGS THAT MAY BREAK YOUR CODE]
         - updated DATA to incorporate MARC update 5 (Oct. 2004)
