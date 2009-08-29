@@ -8,7 +8,7 @@ use MARC::Field;
 
 use MARC::Lint::CodeData qw(%GeogAreaCodes %ObsoleteGeogAreaCodes %LanguageCodes %ObsoleteLanguageCodes);
 
-our $VERSION = 1.43;
+our $VERSION = 1.44;
 
 =head1 NAME
 
@@ -740,10 +740,12 @@ sub _check_article {
         'A-' => 1,
         'A+' => 1,
         'A is ' => 1,
+        'A isn\'t ' => 1,
         'A l\'' => 1,
         'A la ' => 1,
         'A posteriori' => 1,
         'A priori' => 1,
+        'A to ' => 1,
         'El Nino' => 1,
         'El Salvador' => 1,
         'L-' => 1,
@@ -869,6 +871,10 @@ This subfield could be the 1st or 2nd subfield, so the code that checks for the 
 =item * Subfield 9
 
 This subfield is not officially allowed in MARC, since it is locally defined. Some way needs to be made to allow messages/warnings about this subfield to be turned off (or otherwise deal with records using/allowing locally defined subfield 9).
+
+=item * 008 length and presence check
+
+Currently, 008 validation is not implemented in MARC::Lint, but is left to MARC::Errorchecks. It might be useful if MARC::Lint's basic validation checks included a verification that the 008 exists and is exactly 40 characters long. Additional 008-related checking and byte validation would remain in MARC::Errorchecks.
 
 =item * ISBN and ISSN checking
 
@@ -1054,6 +1060,7 @@ f       R       Party to document
 ind1    blank   Undefined
 ind2    blank   Undefined
 a       R       National bibliography number 
+z       R       Canceled/Invalid national bibliography number
 2       NR      Source 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -1073,6 +1080,7 @@ a       R       Copyright or legal deposit number
 b       NR      Assigning agency
 d       NR      Date
 i       NR      Display text
+z       R       Canceled/invalid copyright or legal deposit number
 2       NR      Source 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -1097,6 +1105,8 @@ z       R       Canceled/invalid ISBN
 ind1    b01     Level of international interest
 ind2    blank   Undefined
 a       NR      International Standard Serial Number 
+l       NR      ISSN-L
+m       R       Canceled ISSN-L
 y       R       Incorrect ISSN 
 z       R       Canceled ISSN 
 2       NR      Source 
@@ -1272,15 +1282,16 @@ e       NR      Description conventions
 8       R       Field link and sequence number 
 
 041     R       LANGUAGE CODE
-ind1    01      Translation indication
+ind1    b01      Translation indication
 ind2    b7      Source of code
 a       R       Language code of text/sound track or separate title 
-b       R       Language code for summary, abstract or subtitles
+b       R       Language code of summary or abstract
 d       R       Language code of sung or spoken text 
 e       R       Language code of librettos 
 f       R       Language code of table of contents 
 g       R       Language code of accompanying material other than librettos 
 h       R       Language code of original and/or intermediate translations of text 
+j       R       Language code of subtitles or captions
 2       NR      Source of code 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -1454,9 +1465,24 @@ ind1    01      Type of edition
 ind2    b04     Source of classification number
 a       R       Classification number 
 b       NR      Item number 
+m       NR      Standard or optional designation
+q       NR      Assigning agency
 2       NR      Edition number 
 6       NR      Linkage 
 8       R       Field link and sequence number 
+
+083     R       ADDITIONAL DEWEY DECIMAL CLASSIFICATION NUMBER
+ind1    01      Type of edition
+ind2    blank   Undefined
+a       R       Classification number
+c       R       Classification number--Ending number of span
+m       NR      Standard or optional designation
+q       NR      Assigning agency
+y       R       Table sequence number for internal subarrangement or add table
+z       R       Table identification
+2       NR      Edition number
+6       NR      Linkage
+8       R       Field link and sequence number
 
 084     R       OTHER CLASSIFICATION NUMBER
 ind1    blank   Undefined
@@ -1466,6 +1492,24 @@ b       NR      Item number
 2       NR      Source of number 
 6       NR      Linkage 
 8       R       Field link and sequence number 
+
+085     R       SYNTHESIZED CLASSIFICATION NUMBER COMPONENTS
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Number where instructions are found-single number or beginning number of span
+b       R       Base number
+c       R       Classification number-ending number of span
+f       R       Facet designator
+r       R       Root number
+s       R       Digits added from classification number in schedule or external table
+t       R       Digits added from internal subarrangement or add table
+u       R       Number being analyzed
+v       R       Number in internal subarrangement or add table where instructions are found
+w       R       Table identification-Internal subarrangement or add table
+y       R       Table sequence number for internal subarrangement or add table
+z       R       Table identification
+6       NR      Linkage
+8       R       Field link and sequence number
 
 086     R       GOVERNMENT DOCUMENT CLASSIFICATION NUMBER
 ind1    b01     Number source
@@ -1502,6 +1546,7 @@ p       R       Name of part/section of a work
 q       NR      Fuller form of name 
 t       NR      Title of a work 
 u       NR      Affiliation 
+0       R       Authority record control number
 4       R       Relator code 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -1522,6 +1567,7 @@ n       R       Number of part/section/meeting
 p       R       Name of part/section of a work 
 t       NR      Title of a work 
 u       NR      Affiliation 
+0       R       Authority record control number
 4       R       Relator code 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -1543,6 +1589,7 @@ p       R       Name of part/section of a work
 q       NR      Name of meeting following jurisdiction name entry element 
 t       NR      Title of a work 
 u       NR      Affiliation 
+0       R       Authority record control number
 4       R       Relator code 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -1564,6 +1611,7 @@ p       R       Name of part/section of a work
 r       NR      Key for music 
 s       NR      Version 
 t       NR      Title of a work 
+0       R       Authority record control number
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -1600,6 +1648,7 @@ o       NR      Arranged statement for music
 p       R       Name of part/section of a work 
 r       NR      Key for music 
 s       NR      Version 
+0       R       Authority record control number
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -1959,6 +2008,29 @@ z       NR      Source of information
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
+363     R       NORMALIZED DATE AND SEQUENTIAL DESIGNATION
+ind1    b01      Start/End designator
+ind2    b01      State of issuanceUndefined
+a       NR      First level of enumeration
+b       NR      Second level of enumeration
+c       NR      Third level of enumeration
+d       NR      Fourth level of enumeration
+e       NR      Fifth level of enumeration
+f       NR      Sixth level of enumeration
+g       NR      Alternative numbering scheme, first level of enumeration
+h       NR      Alternative numbering scheme, second level of enumeration
+i       NR      First level of chronology
+j       NR      Second level of chronology
+k       NR      Third level of chronology
+l       NR      Fourth level of chronology
+m       NR      Alternative numbering scheme, chronology
+u       NR      First level textual designation
+v       NR      First level of chronology, issuance
+x       R       Nonpublic note
+z       R       Public note
+6       NR      Linkage
+8       NR      Field link and sequence number
+
 365     R       TRADE PRICE
 ind1    blank   Undefined
 ind2    blank   Undefined
@@ -2061,7 +2133,7 @@ x       NR      International Standard Serial Number
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
-440     R       SERIES STATEMENT/ADDED ENTRY--TITLE
+440     R       SERIES STATEMENT/ADDED ENTRY--TITLE [OBSOLETE]
 ind1    blank   Undefined
 ind2    0-9     Nonfiling characters
 a       NR      Title 
@@ -2069,6 +2141,8 @@ n       R       Number of part/section of a work
 p       R       Name of part/section of a work 
 v       NR      Volume number/sequential designation  
 x       NR      International Standard Serial Number 
+w       R       Bibliographic record control number
+0       R       Authority record control number
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -2079,6 +2153,7 @@ a       R       Series statement
 l       NR      Library of Congress call number 
 v       R       Volume number/sequential designation  
 x       NR      International Standard Serial Number 
+3       NR      Materials specified
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -2103,6 +2178,11 @@ a       NR      With note
 ind1    blank   Undefined
 ind2    blank   Undefined
 a       NR      Dissertation note 
+b       NR      Degree type
+c       NR      Name of granting institution
+d       NR      Year of degree granted
+g       R       Miscellaneous information
+o       R       Dissertation identifier
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -2225,11 +2305,13 @@ a       NR      Date/time and place of an event note
 8       R       Field link and sequence number 
 
 520     R       SUMMARY, ETC.
-ind1    b01238    Display constant controller
+ind1    b012348    Display constant controller
 ind2    blank   Undefined
 a       NR      Summary, etc. note 
 b       NR      Expansion of summary note 
+c       NR      Assigning agency
 u       R       Uniform Resource Identifier 
+2       NR      Source
 3       NR      Materials specified 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -2304,6 +2386,7 @@ f       R       Series statement of reproduction
 m       R       Dates and/or sequential designation of issues reproduced 
 n       R       Note about reproduction 
 3       NR      Materials specified 
+5       NR      Institution to which field applies
 6       NR      Linkage 
 7       NR      Fixed-length data elements of reproduction 
 8       R       Field link and sequence number 
@@ -2320,6 +2403,7 @@ k       R       Key title of original
 l       NR      Location of original 
 m       NR      Material specific details 
 n       R       Note about original 
+o       R       Other resource identifier
 p       NR      Introductory phrase 
 t       NR      Title statement of original 
 x       R       International Standard Serial Number 
@@ -2360,6 +2444,7 @@ a       NR      System details note
 i       NR      Display text 
 u       R       Uniform Resource Identifier 
 3       NR      Materials specified  
+5       NR      Institution to which field applies
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -2392,6 +2477,32 @@ o       R       Type of unit
 5       NR      Institution to which field applies 
 6       NR      Linkage 
 8       R       Field link and sequence number 
+
+542     R       INFORMATION RELATING TO COPYRIGHT STATUS
+ind1    b01     Relationship
+ind2    blank   Undefined
+a       NR      Personal creator
+b       NR      Personal creator death date
+c       NR      Corporate creator
+d       R       Copyright holder
+e       R       Copyright holder contact information
+f       R       Copyright statement
+g       NR      Copyright date
+h       R       Copyright renewal date
+i       NR      Publication date
+j       NR      Creation date
+k       R       Publisher
+l       NR      Copyright status
+m       NR      Publication status
+n       R       Note
+o       NR      Research date
+q       NR      Assigning agency
+r       NR      Jurisdiction of copyright assessment
+s       NR      Source of information
+u       R       Uniform Resource Identifier
+3       NR      Materials specified
+6       NR      Linkage
+8       R       Field link and sequence number
 
 544     R       LOCATION OF OTHER ARCHIVAL MATERIALS NOTE
 ind1    b01     Relationship
@@ -2628,6 +2739,7 @@ v       R       Form subdivision
 x       R       General subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
+0       R       Authority record control number
 2       NR      Source of heading or term 
 3       NR      Materials specified 
 4       R       Relator code 
@@ -2659,6 +2771,7 @@ v       R       Form subdivision
 x       R       General subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
+0       R       Authority record control number
 2       NR      Source of heading or term 
 3       NR      Materials specified 
 4       R       Relator code 
@@ -2688,6 +2801,7 @@ v       R       Form subdivision
 x       R       General subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
+0       R       Authority record control number
 2       NR      Source of heading or term 
 3       NR      Materials specified 
 4       R       Relator code 
@@ -2716,6 +2830,7 @@ v       R       Form subdivision
 x       R       General subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
+0       R       Authority record control number
 2       NR      Source of heading or term 
 3       NR      Materials specified 
 4       R       Relator code
@@ -2730,6 +2845,7 @@ v       R       Form subdivision
 x       R       General subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
+0       R       Authority record control number
 2       NR      Source of heading or term 
 3       NR      Materials specified 
 6       NR      Linkage 
@@ -2747,6 +2863,7 @@ v       R       Form subdivision
 x       R       General subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
+0       R       Authority record control number
 2       NR      Source of heading or term 
 3       NR      Materials specified 
 4       R       Relator code
@@ -2762,6 +2879,7 @@ v       R       Form subdivision
 x       R       General subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
+0       R       Authority record control number
 2       NR      Source of heading or term 
 3       NR      Materials specified 
 4       R       Relator code
@@ -2770,7 +2888,7 @@ z       R       Geographic subdivision
 
 653     R       INDEX TERM--UNCONTROLLED
 ind1    b012    Level of index term
-ind2    blank   Undefined
+ind2    b0123456   Type of term or name
 a       R       Uncontrolled term 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -2785,6 +2903,7 @@ e       R       Relator term
 v       R       Form subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
+0       R       Authority record control number
 2       NR      Source of heading or term 
 3       NR      Materials specified 
 4       R       Relator code
@@ -2801,6 +2920,7 @@ v       R       Form subdivision
 x       R       General subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
+0       R       Authority record control number
 2       NR      Source of term 
 3       NR      Materials specified 
 5       NR      Institution to which field applies 
@@ -2816,6 +2936,7 @@ v       R       Form subdivision
 x       R       General subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
+0       R       Authority record control number
 2       NR      Source of term 
 3       NR      Materials specified 
 6       NR      Linkage 
@@ -2829,6 +2950,7 @@ v       R       Form subdivision
 x       R       General subdivision 
 y       R       Chronological subdivision 
 z       R       Geographic subdivision 
+0       R       Authority record control number
 2       NR      Source of term 
 3       NR      Materials specified 
 6       NR      Linkage 
@@ -2856,6 +2978,7 @@ e       R       Relator term
 f       R       City subsection
 g       R       Other nonjurisdictional geographic region and feature
 h       R       Extraterrestrial area
+0       R       Authority record control number
 2       NR      Source of heading or term
 4       R       Relator code
 6       NR      Linkage
@@ -2885,6 +3008,7 @@ s       NR      Version
 t       NR      Title of a work 
 u       NR      Affiliation 
 x       NR      International Standard Serial Number 
+0       R       Authority record control number
 3       NR      Materials specified 
 4       R       Relator code 
 5       NR      Institution to which field applies 
@@ -2913,6 +3037,7 @@ s       NR      Version
 t       NR      Title of a work 
 u       NR      Affiliation 
 x       NR      International Standard Serial Number 
+0       R       Authority record control number
 3       NR      Materials specified 
 4       R       Relator code 
 5       NR      Institution to which field applies 
@@ -2939,6 +3064,7 @@ s       NR      Version
 t       NR      Title of a work 
 u       NR      Affiliation 
 x       NR      International Standard Serial Number 
+0       R       Authority record control number
 3       NR      Materials specified 
 4       R       Relator code 
 5       NR      Institution to which field applies 
@@ -2972,6 +3098,7 @@ r       NR      Key for music
 s       NR      Version 
 t       NR      Title of a work 
 x       NR      International Standard Serial Number 
+0       R       Authority record control number
 3       NR      Materials specified 
 5       NR      Institution to which field applies 
 6       NR      Linkage 
@@ -2988,6 +3115,18 @@ p       R       Name of part/section of a work
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
+751     R       ADDED ENTRY--GEOGRAPHIC NAME
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       NR      Geographic name
+e       R       Relator term
+0       R       Authority record control number
+2       NR      Source of heading or term
+3       NR      Materials specified
+4       R       Relator code
+6       NR      Linkage
+8       R       Field link and sequence number
+
 752     R       ADDED ENTRY--HIERARCHICAL PLACE NAME
 ind1    blank   Undefined
 ind2    blank   Undefined
@@ -2998,6 +3137,7 @@ d       NR      City
 f       R       City subsection
 g       R       Other nonjurisdictional geographic region and feature
 h       R       Extraterrestrial area
+0       R       Authority record control number
 2       NR      Source of heading or term
 6       NR      Linkage
 8       R       Field link and sequence number
@@ -3019,6 +3159,7 @@ c       R       Taxonomic category
 d       R       Common or alternative name 
 x       R       Non-public note 
 z       R       Public note 
+0       R       Authority record control number
 2       NR      Source of taxonomic identification 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -3433,6 +3574,10 @@ s       NR      Version
 t       NR      Title of a work 
 u       NR      Affiliation 
 v       NR      Volume/sequential designation  
+w       R       Bibliographic record control number
+x       NR      International Standard Serial Number
+0       R       Authority record control number
+3       NR      Materials specified
 4       R       Relator code 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -3459,6 +3604,10 @@ s       NR      Version
 t       NR      Title of a work 
 u       NR      Affiliation 
 v       NR      Volume/sequential designation 
+w       R       Bibliographic record control number
+x       NR      International Standard Serial Number
+0       R       Authority record control number
+3       NR      Materials specified
 4       R       Relator code 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -3483,6 +3632,10 @@ s       NR      Version
 t       NR      Title of a work 
 u       NR      Affiliation 
 v       NR      Volume/sequential designation 
+w       R       Bibliographic record control number
+x       NR      International Standard Serial Number
+0       R       Authority record control number
+3       NR      Materials specified
 4       R       Relator code 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -3505,6 +3658,10 @@ r       NR      Key for music
 s       NR      Version 
 t       NR      Title of a work 
 v       NR      Volume/sequential designation 
+w       R       Bibliographic record control number
+x       NR      International Standard Serial Number
+0       R       Authority record control number
+3       NR      Materials specified
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -3530,6 +3687,7 @@ ind2    b012    Shelving order
 a       NR      Location 
 b       R       Sublocation or collection 
 c       R       Shelving location 
+d       R       Former shelving location
 e       R       Address 
 f       R       Coded location qualifier 
 g       R       Non-coded location qualifier 
@@ -3612,6 +3770,15 @@ z       R       Public note
 ind1            Same as associated field
 ind2            Same as associated field
 6       NR      Linkage
+
+882     NR      REPLACEMENT RECORD INFORMATION
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Replacement title
+i       R       Explanatory text
+w       R       Replacement bibliographic record control number
+6       NR      Linkage
+8       R       Field link and sequence number
 
 886     R       FOREIGN MARC INFORMATION FIELD
 ind1    012     Type of field
