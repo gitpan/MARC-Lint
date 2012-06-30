@@ -8,7 +8,7 @@ use MARC::Field;
 
 use MARC::Lint::CodeData qw(%GeogAreaCodes %ObsoleteGeogAreaCodes %LanguageCodes %ObsoleteLanguageCodes);
 
-our $VERSION = 1.44;
+our $VERSION = 1.45;
 
 =head1 NAME
 
@@ -737,6 +737,7 @@ sub _check_article {
 # may want to make keys lowercase
     my %exceptions = (
         'A & E' => 1,
+        'A & ' => 1,
         'A-' => 1,
         'A+' => 1,
         'A is ' => 1,
@@ -748,6 +749,7 @@ sub _check_article {
         'A to ' => 1,
         'El Nino' => 1,
         'El Salvador' => 1,
+        'L is ' => 1,
         'L-' => 1,
         'La Salle' => 1,
         'Las Vegas' => 1,
@@ -907,7 +909,7 @@ employers of the various contributors to the code.
 =cut
 
 # Used only to read the stuff from __DATA__
-sub _read_rules() {
+sub _read_rules {
     my $self = shift;
 
     my $tell = tell(DATA);  # Stash the position so we can reset it for next time
@@ -976,7 +978,7 @@ sub _parse_tag_rules {
 }
 
 
-sub _nice_list($) {
+sub _nice_list {
     my $str = shift;
 
     if ( $str =~ s/(\d)-(\d)/$1 thru $2/ ) {
@@ -989,7 +991,7 @@ sub _nice_list($) {
     return join( ", ", @digits ) . " or $last";
 }
 
-sub _ind_regex($) {
+sub _ind_regex {
     my $str = shift;
 
     return qr/^ $/ if $str eq "blank";
@@ -1205,6 +1207,9 @@ ind2    b012    Type of event
 a       R       Formatted date/time 
 b       R       Geographic classification area code 
 c       R       Geographic classification subarea code 
+p       R       Place of event
+0       R       Record control number
+2       R       Source of term
 3       NR      Materials specified 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -1231,7 +1236,9 @@ t       R       G-ring longitude
 x       NR      Beginning date
 y       NR      Ending date
 z       NR      Name of extraterrestrial body
+0       R       Authority record control number or standard number
 2       NR      Source
+3       NR      Materials specified
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -1277,7 +1284,7 @@ a       NR      Original cataloging agency
 b       NR      Language of cataloging 
 c       NR      Transcribing agency 
 d       R       Modifying agency 
-e       NR      Description conventions 
+e       R       Description conventions 
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -1290,8 +1297,11 @@ d       R       Language code of sung or spoken text
 e       R       Language code of librettos 
 f       R       Language code of table of contents 
 g       R       Language code of accompanying material other than librettos 
-h       R       Language code of original and/or intermediate translations of text 
+h       R       Language code of original
 j       R       Language code of subtitles or captions
+k       R       Language code of intermediate translations
+m       R       Language code of original accompanying materials other than librettos
+n       R       Language code of original libretto
 2       NR      Source of code 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -1307,6 +1317,7 @@ ind2    blank   Undefined
 a       R       Geographic area code 
 b       R       Local GAC code 
 c       R       ISO code 
+0       R       Authority record control number or standard number
 2       R       Source of local code 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -1451,7 +1462,7 @@ z       R       Canceled/invalid GPO item number
 8       R       Field link and sequence number 
 
 080     R       UNIVERSAL DECIMAL CLASSIFICATION NUMBER
-ind1    blank   Undefined
+ind1    01      Type of edition
 ind2    blank   Undefined
 a       NR      Universal Decimal Classification number 
 b       NR      Item number 
@@ -1461,7 +1472,7 @@ x       R       Common auxiliary subdivision
 8       R       Field link and sequence number 
 
 082     R       DEWEY DECIMAL CLASSIFICATION NUMBER
-ind1    01      Type of edition
+ind1    017     Type of edition
 ind2    b04     Source of classification number
 a       R       Classification number 
 b       NR      Item number 
@@ -1472,7 +1483,7 @@ q       NR      Assigning agency
 8       R       Field link and sequence number 
 
 083     R       ADDITIONAL DEWEY DECIMAL CLASSIFICATION NUMBER
-ind1    01      Type of edition
+ind1    017     Type of edition
 ind2    blank   Undefined
 a       R       Classification number
 c       R       Classification number--Ending number of span
@@ -1489,6 +1500,7 @@ ind1    blank   Undefined
 ind2    blank   Undefined
 a       R       Classification number 
 b       NR      Item number 
+q       NR      Assigning agency
 2       NR      Source of number 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -1764,10 +1776,11 @@ a       NR      Computer file characteristics
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
-257     NR      COUNTRY OF PRODUCING ENTITY FOR ARCHIVAL FILMS
+257     R       COUNTRY OF PRODUCING ENTITY
 ind1    blank   Undefined
 ind2    blank   Undefined
-a       NR      Country of producing entity 
+a       R       Country of producing entity
+2       NR      Source
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -1821,6 +1834,16 @@ ind2    blank   Undefined
 a       NR      Projected publication date 
 6       NR      Linkage 
 8       R       Field link and sequence number 
+
+264     R       PRODUCTION, PUBLICATION, DISTRIBUTION, MANUFACTURE, AND COPYRIGHT NOTICE
+ind1    b23     Sequence of statements
+ind2    01234   Function of entity
+a       R       Place of production, publication, distribution, manufacture
+b       R       Name of producer, publisher, distributor, manufacturer
+c       R       Date of production, publication, distribution, manufacture, or copyright notice
+3       NR      Materials specified
+6       NR      Linkage
+8       R       Field link and sequence number (R)
 
 270     R       ADDRESS
 ind1    b12     Level
@@ -1891,6 +1914,36 @@ b       NR      Dates of former publication frequency
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
+336     R       CONTENT TYPE
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Content type term
+b       R       Content type code
+2       NR      Source
+3       NR      Materials specified
+6       NR      Linkage 
+8       R       Field link and sequence number 
+
+337     R       MEDIA TYPE
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Media type term
+b       R       Media type code
+2       NR      Source
+3       NR      Materials specified
+6       NR      Linkage 
+8       R       Field link and sequence number 
+
+338     R       CARRIER TYPE
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Carrier type term
+b       R       Carrier type code
+2       NR      Source
+3       NR      Materials specified
+6       NR      Linkage 
+8       R       Field link and sequence number 
+
 340     R       PHYSICAL MEDIUM
 ind1    blank   Undefined
 ind2    blank   Undefined
@@ -1902,6 +1955,13 @@ e       R       Support
 f       R       Production rate/ratio 
 h       R       Location within medium 
 i       R       Technical specifications of medium 
+j       R       Generation
+k       R       Layout
+m       R       Book format
+n       R       Font size
+o       R       Polarity
+0       R       Authority record control number or standard number
+2       NR      Source
 3       NR      Materials specified 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -1949,6 +2009,60 @@ h       NR      Bearing reference direction
 i       NR      Bearing reference meridian 
 6       NR      Linkage 
 8       R       Field link and sequence number 
+
+344     R       SOUND CHARACTERISTICS
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Type of recording
+b       R       Recording medium
+c       R       Playing speed
+d       R       Groove characteristic
+e       R       Track configuration
+f       R       Tape configuration
+g       R       Configuration of playback channels
+h       R       Special playback characteristics
+0       R       Authority record control number or standard number
+2       NR      Source
+3       NR      Materials specified
+6       NR      Linkage
+8       R       Field link and sequence number
+
+345     R       PROJECTION CHARACTERISTICS OF MOVING IMAGE
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Presentation format
+b       R       Projection speed
+0       R       Authority record control number or standard number
+2       NR      Source
+3       NR      Materials specified
+6       NR      Linkage
+8       R       Field link and sequence number
+
+346     R       VIDEO CHARACTERISTICS
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Video format
+b       R       Broadcast standard
+0       R       Authority record control number or standard number
+2       NR      Source
+3       NR      Materials specified
+6       NR      Linkage
+8       R       Field link and sequence number
+
+347     R       DIGITAL FILE CHARACTERISTICS
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       File type
+b       R       Encoding format
+c       R       File size
+d       R       Resolution
+e       R       Regional encoding
+f       R       Transmission speed
+0       R       Authority record control number or standard number
+2       NR      Source
+3       NR      Materials specified
+6       NR      Linkage
+8       R       Field link and sequence number
 
 351     R       ORGANIZATION AND ARRANGEMENT OF MATERIALS
 ind1    blank   Undefined
@@ -2067,6 +2181,69 @@ m       NR      Identification of agency
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
+377     R       ASSOCIATED LANGUAGE
+ind1    blank   Undefined
+ind2    b7      Undefined
+a       R       Language code
+l       R       Language term
+2       NR      Source
+6       NR      Linkage
+8       R       Field link and sequence number
+
+380     R       FORM OF WORK
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Form of work
+0       R       Record control number
+2       NR      Source of term
+6       NR      Linkage
+8       R       Field link and sequence number
+
+381     R       OTHER DISTINGUISHING CHARACTERISTICS OF WORK OR EXPRESSION
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Other distinguishing characteristic
+u       R       Uniform Resource Identifier
+v       R       Source of information
+0       R       Record control number
+2       NR      Source of term
+6       NR      Linkage
+8       R       Field link and sequence number
+
+382     R       MEDIUM OF PERFORMANCE
+ind1    b01     Undefined
+ind2    b01     Undefined
+a       R       Medium of performance
+b       R       Soloist
+d       R       Doubling instrument
+n       R       Number of performers of the same medium
+p       R       Alternative medium of performance
+s       R       Total number of performers
+v       R       Note
+0       R       Record control number
+2       NR      Source of term
+6       NR      Linkage
+8       R       Field link and sequence number
+
+383     R       NUMERIC DESIGNATION OF MUSICAL WORK
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       R       Serial number
+b       R       Opus number
+c       R       Thematic index number
+d       NR      Thematic index code
+e       NR      Publisher associated with opus number
+2       NR      Source
+6       NR      Linkage
+8       R       Field link and sequence number
+
+384     NR      KEY
+ind1    b01     Key type
+ind2    blank   Undefined
+a       NR      Key
+6       NR      Linkage
+8       R       Field link and sequence number
+
 400     R       SERIES STATEMENT/ADDED ENTRY--PERSONAL NAME 
 ind1    013     Type of personal name entry element
 ind2    01      Pronoun represents main entry
@@ -2152,7 +2329,7 @@ ind2    blank   Undefined
 a       R       Series statement 
 l       NR      Library of Congress call number 
 v       R       Volume number/sequential designation  
-x       NR      International Standard Serial Number 
+x       R       International Standard Serial Number 
 3       NR      Materials specified
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -2242,6 +2419,7 @@ ind2    blank   Undefined
 a       NR      Name of source 
 b       NR      Coverage of source 
 c       NR      Location within source 
+u       R       Uniform Resource Identifier
 x       NR      International Standard Serial Number 
 3       NR      Materials specified 
 6       NR      Linkage 
@@ -2300,6 +2478,11 @@ a       NR      Type of computer file or data note
 ind1    blank   Undefined
 ind2    blank   Undefined
 a       NR      Date/time and place of an event note 
+d       R       Date of event
+o       R       Other event information
+p       R       Place of event
+0       R       Record control number
+2       R       Source of term
 3       NR      Materials specified 
 6       NR      Linkage 
 8       R       Field link and sequence number 
@@ -2408,6 +2591,7 @@ p       NR      Introductory phrase
 t       NR      Title statement of original 
 x       R       International Standard Serial Number 
 z       R       International Standard Book Number 
+3       NR      Materials specified
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -2597,6 +2781,7 @@ z       R       International Standard Book Number
 ind1    b01     Undefined
 ind2    blank   Undefined
 a       NR      History 
+u       R       Uniform Resource Identifier
 3       NR      Materials specified 
 5       NR      Institution to which field applies 
 6       NR      Linkage 
@@ -2709,6 +2894,14 @@ ind1    b8      Display constant controller
 ind2    blank   Undefined
 a       NR      Awards note 
 3       NR      Materials specified 
+6       NR      Linkage 
+8       R       Field link and sequence number 
+
+588     R       SOURCE OF DESCRIPTION NOTE
+ind1    blank   Undefined
+ind2    blank   Undefined
+a       NR      Source of description note
+5       NR      Institution to which field applies 
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -2995,6 +3188,7 @@ e       R       Relator term
 f       NR      Date of a work 
 g       NR      Miscellaneous information 
 h       NR      Medium 
+i       R       Relationship information
 j       R       Attribution qualifier 
 k       R       Form subheading 
 l       NR      Language of a work 
@@ -3026,6 +3220,7 @@ e       R       Relator term
 f       NR      Date of a work 
 g       NR      Miscellaneous information 
 h       NR      Medium 
+i       R       Relationship information
 k       R       Form subheading 
 l       NR      Language of a work 
 m       R       Medium of performance for music 
@@ -3054,6 +3249,7 @@ e       R       Subordinate unit
 f       NR      Date of a work 
 g       NR      Miscellaneous information 
 h       NR      Medium 
+i       R       Relationship information
 j       R       Relator term
 k       R       Form subheading 
 l       NR      Language of a work 
@@ -3088,6 +3284,7 @@ d       R       Date of treaty signing
 f       NR      Date of a work 
 g       NR      Miscellaneous information 
 h       NR      Medium 
+i       R       Relationship information
 k       R       Form subheading 
 l       NR      Language of a work 
 m       R       Medium of performance for music 
@@ -3171,9 +3368,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 m       NR      Material-specific details 
 n       R       Note 
 o       R       Other item identifier 
@@ -3182,6 +3379,7 @@ t       NR      Title
 w       R       Record control number 
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3193,9 +3391,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 m       NR      Material-specific details 
 n       R       Note 
 o       R       Other item identifier 
@@ -3204,6 +3402,7 @@ t       NR      Title
 w       R       Record control number 
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3215,9 +3414,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3230,6 +3429,7 @@ w       R       Record control number
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
 z       R       International Standard Book Number 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3241,9 +3441,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3256,6 +3456,7 @@ w       R       Record control number
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
 z       R       International Standard Book Number 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3267,9 +3468,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3282,6 +3483,7 @@ w       R       Record control number
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
 z       R       International Standard Book Number 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3293,9 +3495,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3308,6 +3510,7 @@ w       R       Record control number
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
 z       R       International Stan dard Book Number 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3318,9 +3521,9 @@ ind2    b8      Display constant controller
 a       NR      Main entry heading 
 b       NR      Edition 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3336,6 +3539,7 @@ x       NR      International Standard Serial Number
 y       NR      CODEN designation 
 z       R       International Standard Book Number 
 3       NR      Materials specified 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3347,9 +3551,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3362,6 +3566,7 @@ w       R       Record control number
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
 z       R       International Standard Book Number 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3375,9 +3580,9 @@ c       NR      Qualifying information
 d       NR      Place, publisher, and date of publication 
 e       NR      Language code 
 f       NR      Country code 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3390,6 +3595,7 @@ w       R       Record control number
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
 z       R       International Standard Book Number 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3401,9 +3607,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3416,6 +3622,7 @@ w       R       Record control number
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
 z       R       International Standard Book Number 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3427,9 +3634,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3439,6 +3646,7 @@ t       NR      Title
 w       R       Record control number 
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3450,9 +3658,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3465,6 +3673,7 @@ w       R       Record control number
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
 z       R       International Standard Book Number 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3476,9 +3685,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3491,6 +3700,7 @@ w       R       Record control number
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
 z       R       International Standard Book Number 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3502,9 +3712,9 @@ a       NR      Main entry heading
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 j       NR      Period of content 
 k       R       Series data for related item 
 m       NR      Material-specific details 
@@ -3520,20 +3730,21 @@ w       R       Record control number
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
 z       R       International Standard Book Number 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
 
-787     R       NONSPECIFIC RELATIONSHIP ENTRY
+787     R       OTHER RELATIONSHIP ENTRY
 ind1    01      Note controller
 ind2    b8      Display constant controller
 a       NR      Main entry heading 
 b       NR      Edition 
 c       NR      Qualifying information 
 d       NR      Place, publisher, and date of publication 
-g       R       Relationship information 
+g       R       Related parts
 h       NR      Physical description 
-i       NR      Display text 
+i       R       Relationship information
 k       R       Series data for related item 
 m       NR      Material-specific details 
 n       R       Note 
@@ -3546,6 +3757,7 @@ w       R       Record control number
 x       NR      International Standard Serial Number 
 y       NR      CODEN designation 
 z       R       International Standard Book Number 
+4       R       Relationship code
 6       NR      Linkage 
 7       NR      Control subfield 
 8       R       Field link and sequence number 
@@ -3579,6 +3791,7 @@ x       NR      International Standard Serial Number
 0       R       Authority record control number
 3       NR      Materials specified
 4       R       Relator code 
+5       R       Institution to which field applies
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -3609,6 +3822,7 @@ x       NR      International Standard Serial Number
 0       R       Authority record control number
 3       NR      Materials specified
 4       R       Relator code 
+5       R       Institution to which field applies
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -3637,6 +3851,7 @@ x       NR      International Standard Serial Number
 0       R       Authority record control number
 3       NR      Materials specified
 4       R       Relator code 
+5       R       Institution to which field applies
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
@@ -3662,6 +3877,7 @@ w       R       Bibliographic record control number
 x       NR      International Standard Serial Number
 0       R       Authority record control number
 3       NR      Materials specified
+5       R       Institution to which field applies
 6       NR      Linkage 
 8       R       Field link and sequence number 
 
